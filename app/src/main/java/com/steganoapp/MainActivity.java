@@ -1,4 +1,4 @@
-package com.example.steganoapp;
+package com.steganoapp;
 
 import android.Manifest;
 import android.app.Activity;
@@ -20,12 +20,10 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 
-import com.example.steganoapp.steganography.SteganoMethod;
+import com.steganoapp.steganography.SteganoMethod;
 
 import org.opencv.android.OpenCVLoader;
-import org.opencv.core.Core;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
 import org.opencv.imgcodecs.Imgcodecs;
 
 import java.io.File;
@@ -181,7 +179,7 @@ public class MainActivity extends Activity {
         else {
             imageStatusTextView.setText(R.string.fileLoaded);
             messageText.setText(R.string.fileSize);
-            messageText.append(" " + String.valueOf(byteImg.length) + " bajtów");
+            messageText.append(" " + byteImg.length + " bajtów");
         }
 
         System.out.println(img.channels());
@@ -217,14 +215,10 @@ public class MainActivity extends Activity {
     }
 
     // Dekodowanie obrazu przy użyciu wybranej metody
-    private String decode(SteganoMethod method, byte[] picture) {
+    private String decode(SteganoMethod method, Mat picture) {
 
 
 
         return "";
-    }
-
-    public static byte[] stringToBytes(String string) {
-        return string.getBytes();
     }
 }

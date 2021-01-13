@@ -1,4 +1,4 @@
-package com.example.steganoapp.steganography;
+package com.steganoapp.steganography;
 
 public interface SteganoMethod {
     byte[] encode(byte[] picture, byte[] message);

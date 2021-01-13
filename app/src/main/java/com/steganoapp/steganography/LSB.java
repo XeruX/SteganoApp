@@ -1,4 +1,4 @@
-package com.example.steganoapp.steganography;
+package com.steganoapp.steganography;
 
 public class LSB implements SteganoMethod {
 
