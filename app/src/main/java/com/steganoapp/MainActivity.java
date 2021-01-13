@@ -67,9 +67,6 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Załadowanie natywnej biblioteki OpenCV
-        //System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-
         // Pobranie uprawnień zapisu/odczytu plików
         if(ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
             // Uprawnienia przyznane
@@ -157,11 +154,10 @@ public class MainActivity extends Activity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         if (requestCode == PERMISSION_EXTERNAL_STORAGE) {
-            // Request for permission.
             if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission has been granted.
+                // Uprawnienia przyznane
             } else {
-                // Finish the app
+                // Zakończyć aplikację
 
             }
         }
