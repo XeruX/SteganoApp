@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -27,10 +28,9 @@ import org.opencv.core.Mat;
 import org.opencv.imgcodecs.Imgcodecs;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Arrays;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 public class MainActivity extends Activity {
 
@@ -86,9 +86,8 @@ public class MainActivity extends Activity {
         imagePathTextView.setText(R.string.pathEmpty);
         imageStatusTextView = (TextView) findViewById(R.id.imageStatusTextView);
         imageStatusTextView.setText(R.string.fileMissing);
-
         messageText = (TextView) findViewById(R.id.messageText);
-        messageText.setText(R.string.fileMissing);
+        messageText.setText(R.string.maxMessageSize);
         messageEditText = (EditText) findViewById(R.id.messageEditText);
 
         // Przyciski
@@ -106,6 +105,7 @@ public class MainActivity extends Activity {
                 messageEditText.setText("");
                 messageEditText.setVisibility(View.INVISIBLE);
                 messageEditText.clearFocus();
+                messageText.setVisibility(View.INVISIBLE);
                 encodeButton.setVisibility(View.INVISIBLE);
                 decodeButton.setVisibility(View.VISIBLE);
             }
@@ -114,6 +114,7 @@ public class MainActivity extends Activity {
                 messageEditText.setText("");
                 messageEditText.setVisibility(View.VISIBLE);
                 messageEditText.clearFocus();
+                messageText.setVisibility(View.VISIBLE);
                 encodeButton.setVisibility(View.VISIBLE);
                 decodeButton.setVisibility(View.INVISIBLE);
             }
@@ -142,7 +143,6 @@ public class MainActivity extends Activity {
                 String partial = data.getData().getPath().replace(PARTIAL_PATH, "/");
                 String externalStorage = Environment.getExternalStorageDirectory().getPath();
                 File imagePath = new File(externalStorage + partial);
-
                 imagePathTextView.setText(imagePath.getAbsolutePath());
                 image = loadImage(imagePath);
             }
@@ -164,43 +164,34 @@ public class MainActivity extends Activity {
     }
 
     // Wczytuje obraz z pamięci telefonu i zwraca w postaci tablicy bajtów
-    private Mat loadImage(File imagePath) {
+    private Mat loadImage(File imageFile) {
 
-        Mat img = Imgcodecs.imread(imagePath.getAbsolutePath(), Imgcodecs.IMREAD_COLOR);
-        byte[] byteImg = new byte[img.rows() * img.cols() * (int)(img.elemSize())];
-        //img.get(0, 0, byteImg);
-        //System.out.println(Arrays.toString(byteImg));
+        // Wczytanie obrazu do miniaturki
+        imageView = (ImageView) findViewById(R.id.imageView);
+        imageView.setImageBitmap(BitmapFactory.decodeFile(imageFile.getAbsolutePath()));
+
+
+        Mat img = Imgcodecs.imread(imageFile.getAbsolutePath(), Imgcodecs.IMREAD_COLOR);
+//        byte[] byteImg = new byte[(int)imageFile.length()];
+//        byte[] byteImg2 = new byte[img.rows() * img.cols() * (int)(img.elemSize())];
+//        img.get(0, 0, byteImg2);
 
         if(img.empty()) imageStatusTextView.setText(R.string.fileNotLoaded);
         else {
             imageStatusTextView.setText(R.string.fileLoaded);
-            messageText.setText(R.string.fileSize);
-            messageText.append(" " + byteImg.length + " bajtów");
+            imageStatusTextView.append("\nRozmiar: " + imageFile.length() + " bajtów");
         }
 
-        System.out.println(img.channels());
-        System.out.println(img.rows());
-        System.out.println(img.cols());
-        System.out.println("Rozmiar: " + img.total());
-        System.out.println(Arrays.toString(img.get(0, 0)));
-        System.out.println(Arrays.toString(img.get(0, 1)));
-        System.out.println(Arrays.toString(img.get(0, 2)));
-        System.out.println(Arrays.toString(img.get(0, 256)));
-        System.out.println(Arrays.toString(img.get(0, 511)));
-
-        try(FileInputStream fileInputStream = new FileInputStream(imagePath)) {
-            fileInputStream.read(byteImg);
-
-        } catch (FileNotFoundException e) {
-            System.out.println("Nie znaleziono pliku!");
-            e.printStackTrace();
-        } catch (IOException e) {
-            System.out.println("Błąd I/O!");
-            e.printStackTrace();
-        }
-        // Wczytanie załadowanego obrazu do miniaturki
-        imageView = (ImageView) findViewById(R.id.imageView);
-        imageView.setImageBitmap(BitmapFactory.decodeByteArray(byteImg, 0, byteImg.length));
+//        try(FileInputStream fileInputStream = new FileInputStream(imageFile)) {
+//            fileInputStream.read(byteImg);
+//
+//        } catch (FileNotFoundException e) {
+//            System.out.println("Nie znaleziono pliku!");
+//            e.printStackTrace();
+//        } catch (IOException e) {
+//            System.out.println("Błąd I/O!");
+//            e.printStackTrace();
+//        }
 
         return img;
     }

@@ -5,7 +5,7 @@
     <string name="fileMissing">Brak pliku!</string>
     <string name="fileLoaded">Plik wczytano poprawnie!</string>
     <string name="fileNotLoaded">Błędny format - nie można wczytać pliku!</string>
-    <string name="fileSize">Rozmiar: </string>
+    <string name="maxMessageSize">Maksymalny rozmiar wiadomości: . . .</string>
     <string name="encode">Zakoduj</string>
     <string name="decode">Odkoduj</string>
     <string name="switchButtonOff">Kodowanie</string>
