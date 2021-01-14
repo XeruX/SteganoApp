@@ -26,11 +26,13 @@ import com.steganoapp.steganography.SteganoMethod;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.osgi.OpenCVInterface;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 
 public class MainActivity extends Activity {
 
@@ -48,18 +50,15 @@ public class MainActivity extends Activity {
     private EditText messageEditText;
     private Mat image;
     private byte[] message;
+    private int availableCharacters;
 
-    static{
-
+    static {
         if(OpenCVLoader.initDebug()){
-
-            Log.d("Check","OpenCv configured successfully");
-
+            Log.d("Check","OpenCV skonfigurowano pomyślnie");
         } else{
 
-            Log.d("Check","OpenCv doesn’t configured successfully");
+            Log.d("Check","OpenCV nie zostało pomyślnie skonfigurowane!");
         }
-
     }
 
     @Override
@@ -90,7 +89,7 @@ public class MainActivity extends Activity {
         messageText.setText(R.string.maxMessageSize);
         messageEditText = (EditText) findViewById(R.id.messageEditText);
 
-        // Przyciski
+        //#################### PRZYCISKI ####################
         Button loadImageButton = (Button) findViewById(R.id.loadImageButton);
         loadImageButton.setOnClickListener(v -> {
             Intent intent = new Intent();
@@ -98,46 +97,61 @@ public class MainActivity extends Activity {
             intent.setType("image/*");
             startActivityForResult(intent, ACTIVITY_GET_CONTENT);
         });
+        //########## Przycisk zmiany trybu
         switchButton = (Switch) findViewById(R.id.switchButton);
         switchButton.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if(isChecked) {
                 switchButton.setText(R.string.switchButtonOn);
                 messageEditText.setText("");
-                messageEditText.setVisibility(View.INVISIBLE);
                 messageEditText.clearFocus();
+                messageEditText.setActivated(false);
+                messageEditText.setVisibility(View.INVISIBLE);
                 messageText.setVisibility(View.INVISIBLE);
+                encodeButton.setActivated(false);
                 encodeButton.setVisibility(View.INVISIBLE);
+                decodeButton.setActivated(true);
                 decodeButton.setVisibility(View.VISIBLE);
             }
             else {
                 switchButton.setText(R.string.switchButtonOff);
                 messageEditText.setText("");
-                messageEditText.setVisibility(View.VISIBLE);
                 messageEditText.clearFocus();
+                messageEditText.setActivated(true);
+                messageEditText.setVisibility(View.VISIBLE);
                 messageText.setVisibility(View.VISIBLE);
+                encodeButton.setActivated(true);
                 encodeButton.setVisibility(View.VISIBLE);
+                decodeButton.setActivated(false);
                 decodeButton.setVisibility(View.INVISIBLE);
             }
         });
+        //########## Przycisk kodowania
         encodeButton = (Button) findViewById(R.id.encodeButton);
         encodeButton.setOnClickListener(v -> {
-
-            Toast.makeText(getApplicationContext(), "Zakoduj", Toast.LENGTH_SHORT).show();
-
+            if(image == null)
+                Toast.makeText(getApplicationContext(), "Najpierw załaduj obraz!", Toast.LENGTH_SHORT).show();
+            else {
+                message = messageEditText.getText().toString().getBytes();
+                Toast.makeText(getApplicationContext(), messageEditText.getText().toString(), Toast.LENGTH_SHORT).show();
+            }
         });
+        //########## Przycisk dekodowania
         decodeButton = (Button) findViewById(R.id.decodeButton);
         decodeButton.setOnClickListener(v -> {
-            Toast.makeText(getApplicationContext(), "Dekoduj", Toast.LENGTH_SHORT).show();
+            if(image == null)
+                Toast.makeText(getApplicationContext(), "Najpierw załaduj obraz!", Toast.LENGTH_SHORT).show();
+            else {
+                Toast.makeText(getApplicationContext(), "Dekoduj", Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
         if(requestCode == ACTIVITY_GET_CONTENT) {
             if(resultCode == RESULT_CANCELED)
-                System.out.println("getData(): Brak danych!");
+                System.err.println("getData(): Błąd! - brak danych!");
             else {
                 String PARTIAL_PATH = "/document/primary:";
                 String partial = data.getData().getPath().replace(PARTIAL_PATH, "/");
@@ -158,54 +172,45 @@ public class MainActivity extends Activity {
                 // Uprawnienia przyznane
             } else {
                 // Zakończyć aplikację
-
             }
         }
     }
 
-    // Wczytuje obraz z pamięci telefonu i zwraca w postaci tablicy bajtów
+    // Wczytuje obraz z pamięci telefonu i zwraca w postaci matrycy OpenCV
     private Mat loadImage(File imageFile) {
-
         // Wczytanie obrazu do miniaturki
         imageView = (ImageView) findViewById(R.id.imageView);
         imageView.setImageBitmap(BitmapFactory.decodeFile(imageFile.getAbsolutePath()));
 
-
+        // Wczytanie obrazu do matrycy OpenCV
         Mat img = Imgcodecs.imread(imageFile.getAbsolutePath(), Imgcodecs.IMREAD_COLOR);
-//        byte[] byteImg = new byte[(int)imageFile.length()];
-//        byte[] byteImg2 = new byte[img.rows() * img.cols() * (int)(img.elemSize())];
-//        img.get(0, 0, byteImg2);
 
-        if(img.empty()) imageStatusTextView.setText(R.string.fileNotLoaded);
+        if(img.empty())
+            imageStatusTextView.setText(R.string.fileNotLoaded);
         else {
             imageStatusTextView.setText(R.string.fileLoaded);
             imageStatusTextView.append("\nRozmiar: " + imageFile.length() + " bajtów");
         }
-
-//        try(FileInputStream fileInputStream = new FileInputStream(imageFile)) {
-//            fileInputStream.read(byteImg);
-//
-//        } catch (FileNotFoundException e) {
-//            System.out.println("Nie znaleziono pliku!");
-//            e.printStackTrace();
-//        } catch (IOException e) {
-//            System.out.println("Błąd I/O!");
-//            e.printStackTrace();
-//        }
-
         return img;
     }
 
     // Kodowanie obrazu przy użyciu wybranej metody
     private void encode(SteganoMethod method, Mat picture, byte[] message) {
-
+        if(checkIfMessageFitInPicture(message, picture)) {
+            method.encode(picture, message);
+        }
+        else messageText.setText(R.string.messageSizeTooLarge);
     }
 
     // Dekodowanie obrazu przy użyciu wybranej metody
     private String decode(SteganoMethod method, Mat picture) {
 
-
-
         return "";
+    }
+
+    private boolean checkIfMessageFitInPicture(byte[] message, Mat picture) {
+        int availableSpace = (int) picture.total() * picture.channels();
+        availableCharacters = availableSpace / 8;
+        return message.length <= availableCharacters;
     }
 }

@@ -6,6 +6,7 @@
     <string name="fileLoaded">Plik wczytano poprawnie!</string>
     <string name="fileNotLoaded">Błędny format - nie można wczytać pliku!</string>
     <string name="maxMessageSize">Maksymalny rozmiar wiadomości: . . .</string>
+    <string name="messageSizeTooLarge">Wiadomość jest zbyt długa!</string>
     <string name="encode">Zakoduj</string>
     <string name="decode">Odkoduj</string>
     <string name="switchButtonOff">Kodowanie</string>

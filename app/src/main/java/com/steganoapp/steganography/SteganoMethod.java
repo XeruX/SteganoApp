@@ -1,6 +1,8 @@
 package com.steganoapp.steganography;
 
+import org.opencv.core.Mat;
+
 public interface SteganoMethod {
-    byte[] encode(byte[] picture, byte[] message);
-    byte[] decode(byte[] picture);
+    Mat encode(Mat picture, byte[] message);
+    String decode(Mat picture);
 }
