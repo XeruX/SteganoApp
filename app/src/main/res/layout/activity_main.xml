@@ -18,6 +18,16 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.022" />
 
+    <TextView
+        android:id="@+id/methodTextView"
+        android:layout_width="64dp"
+        android:layout_height="23dp"
+        android:layout_marginStart="72dp"
+        android:layout_marginTop="24dp"
+        android:text="@string/methodTextView"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/imageView" />
+
     <Button
         android:id="@+id/decodeButton"
         android:layout_width="160dp"
@@ -36,6 +46,7 @@
         android:text="@string/encode"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.501"
         app:layout_constraintStart_toStartOf="parent" />
 
     <EditText
@@ -44,7 +55,7 @@
         android:layout_height="47dp"
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp"
-        android:layout_marginBottom="48dp"
+        android:layout_marginBottom="28dp"
         android:ems="10"
         android:hint="Wiadomość do zakodowania"
         android:inputType="textPersonName"
@@ -52,6 +63,7 @@
         android:visibility="visible"
         app:layout_constraintBottom_toTopOf="@+id/decodeButton"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.25"
         app:layout_constraintStart_toStartOf="parent" />
 
     <TextView
@@ -59,6 +71,7 @@
         android:layout_width="352dp"
         android:layout_height="35dp"
         android:layout_marginStart="32dp"
+        android:layout_marginTop="24dp"
         android:layout_marginEnd="32dp"
         android:layout_marginBottom="8dp"
         android:lines="2"
@@ -67,7 +80,8 @@
         app:layout_constraintBottom_toTopOf="@+id/messageEditText"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.6"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/switchButton" />
 
     <ImageView
         android:id="@+id/imageView"
@@ -120,7 +134,7 @@
         android:minLines="2"
         android:text="@string/fileMissing"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.478"
+        app:layout_constraintHorizontal_bias="0.318"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/imagePathTextView" />
 
@@ -128,13 +142,19 @@
         android:id="@+id/switchButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="100dp"
         android:layout_marginTop="24dp"
-        android:layout_marginEnd="100dp"
+        android:layout_marginEnd="148dp"
         android:text="@string/switchButtonOff"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.484"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/spinner" />
+
+    <Spinner
+        android:id="@+id/spinner"
+        android:layout_width="116dp"
+        android:layout_height="24dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="148dp"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/imageView" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

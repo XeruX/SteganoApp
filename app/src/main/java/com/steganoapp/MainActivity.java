@@ -9,11 +9,16 @@ import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -31,26 +36,27 @@ import org.opencv.osgi.OpenCVInterface;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Objects;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements AdapterView.OnItemSelectedListener {
 
     public static final int PERMISSION_EXTERNAL_STORAGE = 0;
     public static final int ACTIVITY_GET_CONTENT = 1;
 
-    private Context context;
     private TextView imagePathTextView;
     private TextView imageStatusTextView;
-    private ImageView imageView;
     private Switch switchButton;
     private Button encodeButton;
     private Button decodeButton;
     private TextView messageText;
     private EditText messageEditText;
-    private Mat image;
+    private Mat image = new Mat();
+    private int availableCharacters = 0;
     private byte[] message;
-    private int availableCharacters;
+    private String methodName;
 
     static {
         if(OpenCVLoader.initDebug()){
@@ -88,6 +94,35 @@ public class MainActivity extends Activity {
         messageText = (TextView) findViewById(R.id.messageText);
         messageText.setText(R.string.maxMessageSize);
         messageEditText = (EditText) findViewById(R.id.messageEditText);
+        messageEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if(s.length() > before) {
+                    availableCharacters--;
+                    messageText.setText(R.string.maxMessageSize);
+                    messageText.append(" " + availableCharacters);
+                }
+                else if(s.length() < before) {
+                    availableCharacters++;
+                    messageText.setText(R.string.maxMessageSize);
+                    messageText.append(" " + availableCharacters);
+                }
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        });
+        // Spinner
+        Spinner spinner = (Spinner) findViewById(R.id.spinner);
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, R.array.methods_array, android.R.layout.simple_spinner_item);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+        spinner.setOnItemSelectedListener(this);
 
         //#################### PRZYCISKI ####################
         Button loadImageButton = (Button) findViewById(R.id.loadImageButton);
@@ -102,7 +137,6 @@ public class MainActivity extends Activity {
         switchButton.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if(isChecked) {
                 switchButton.setText(R.string.switchButtonOn);
-                messageEditText.setText("");
                 messageEditText.clearFocus();
                 messageEditText.setActivated(false);
                 messageEditText.setVisibility(View.INVISIBLE);
@@ -118,6 +152,16 @@ public class MainActivity extends Activity {
                 messageEditText.clearFocus();
                 messageEditText.setActivated(true);
                 messageEditText.setVisibility(View.VISIBLE);
+
+                if(image.empty()) {
+                    availableCharacters = 0;
+                }
+                else {
+                    availableCharacters = calculateAvailableCharacters(image);
+                }
+
+                messageText.setText(R.string.maxMessageSize);
+                messageText.append(" " + availableCharacters);
                 messageText.setVisibility(View.VISIBLE);
                 encodeButton.setActivated(true);
                 encodeButton.setVisibility(View.VISIBLE);
@@ -128,17 +172,19 @@ public class MainActivity extends Activity {
         //########## Przycisk kodowania
         encodeButton = (Button) findViewById(R.id.encodeButton);
         encodeButton.setOnClickListener(v -> {
-            if(image == null)
+            if(image.empty())
                 Toast.makeText(getApplicationContext(), "Najpierw załaduj obraz!", Toast.LENGTH_SHORT).show();
+            else if(messageEditText.length() <= 0)
+                Toast.makeText(getApplicationContext(), "Wiadomość nie może być pusta!", Toast.LENGTH_SHORT).show();
             else {
                 message = messageEditText.getText().toString().getBytes();
-                Toast.makeText(getApplicationContext(), messageEditText.getText().toString(), Toast.LENGTH_SHORT).show();
+                encode(SteganoMethod.getInstance(methodName), image, message);
             }
         });
         //########## Przycisk dekodowania
         decodeButton = (Button) findViewById(R.id.decodeButton);
         decodeButton.setOnClickListener(v -> {
-            if(image == null)
+            if(image.empty())
                 Toast.makeText(getApplicationContext(), "Najpierw załaduj obraz!", Toast.LENGTH_SHORT).show();
             else {
                 Toast.makeText(getApplicationContext(), "Dekoduj", Toast.LENGTH_SHORT).show();
@@ -162,6 +208,16 @@ public class MainActivity extends Activity {
             }
         }
     }
+    // Spinner
+    @Override
+    public void onItemSelected(AdapterView<?> parent, View view,
+                               int pos, long id) {
+        Object method = parent.getItemAtPosition(pos);
+        methodName = Objects.toString(method);
+    }
+    @Override
+    public void onNothingSelected(AdapterView<?> parent) {
+    }//-----Spinner
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
@@ -179,7 +235,7 @@ public class MainActivity extends Activity {
     // Wczytuje obraz z pamięci telefonu i zwraca w postaci matrycy OpenCV
     private Mat loadImage(File imageFile) {
         // Wczytanie obrazu do miniaturki
-        imageView = (ImageView) findViewById(R.id.imageView);
+        ImageView imageView = (ImageView) findViewById(R.id.imageView);
         imageView.setImageBitmap(BitmapFactory.decodeFile(imageFile.getAbsolutePath()));
 
         // Wczytanie obrazu do matrycy OpenCV
@@ -190,27 +246,52 @@ public class MainActivity extends Activity {
         else {
             imageStatusTextView.setText(R.string.fileLoaded);
             imageStatusTextView.append("\nRozmiar: " + imageFile.length() + " bajtów");
+            availableCharacters = calculateAvailableCharacters(img);
+            messageText.setText(R.string.maxMessageSize);
+            messageText.append(" " + availableCharacters);
         }
         return img;
+    }
+    // Zapisuje obraz pod ścieżką /Pictures/output.png
+    private void saveImage(Mat picture) {
+
+        String path = Environment.getStorageDirectory() + "/self/primary/Pictures/output.png";
+        if(Imgcodecs.haveImageWriter(path)) {
+            Imgcodecs.imwrite(path, picture);
+            Toast.makeText(getApplicationContext(), "Zapisano w /Pictures/", Toast.LENGTH_LONG).show();
+        }
+        else
+            System.err.println("Nie można zapisać pliku!");
     }
 
     // Kodowanie obrazu przy użyciu wybranej metody
     private void encode(SteganoMethod method, Mat picture, byte[] message) {
-        if(checkIfMessageFitInPicture(message, picture)) {
-            method.encode(picture, message);
-        }
-        else messageText.setText(R.string.messageSizeTooLarge);
+        int[] msg = byteToBits(message);
+
+        if(message.length <= calculateAvailableCharacters(picture))
+            saveImage(method.encode(picture, msg));
+        else
+            messageText.setText(R.string.messageSizeTooLarge);
     }
 
     // Dekodowanie obrazu przy użyciu wybranej metody
     private String decode(SteganoMethod method, Mat picture) {
-
-        return "";
+            return method.decode(picture);
     }
 
-    private boolean checkIfMessageFitInPicture(byte[] message, Mat picture) {
+    private int calculateAvailableCharacters(Mat picture) {
         int availableSpace = (int) picture.total() * picture.channels();
-        availableCharacters = availableSpace / 8;
-        return message.length <= availableCharacters;
+        return availableSpace / 8;
+    }
+
+    public int[] byteToBits(byte[] message) {
+        int pointer = 0;
+        int[] messageBits = new int[message.length * 8];
+        for (byte b : message) {
+            for (int j = 7; j >= 0; j--) {
+                messageBits[pointer] = b >>> j & 1;
+            }
+        }
+        return messageBits;
     }
 }
