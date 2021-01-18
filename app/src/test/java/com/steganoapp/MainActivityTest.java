@@ -18,11 +18,11 @@ public class MainActivityTest {
         assertEquals(4, 2 + 2);
     }
 
-    @Test
-    public void shouldConvertFromByteArrayToBitArray() {
-        String message = "ab";
-        int[] expected = {0b01100001, 0b01100010};
-        int[] result = mainActivity.byteToBits(message.getBytes());
-        assertEquals(expected, result);
-    }
+//    @Test
+//    public void shouldConvertFromByteArrayToBitArray() {
+//        String message = "ab";
+//        int[] expected = {0b01100001, 0b01100010};
+//        int[] result = mainActivity.byteToBits(message.getBytes());
+//        assertEquals(expected, result);
+//    }
 }

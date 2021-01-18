@@ -30,10 +30,14 @@ import com.steganoapp.steganography.SteganoMethod;
 
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
+import org.opencv.core.MatOfInt;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.osgi.OpenCVInterface;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -252,13 +256,14 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         }
         return img;
     }
+
     // Zapisuje obraz pod ścieżką /Pictures/output.png
     private void saveImage(Mat picture) {
 
         String path = Environment.getStorageDirectory() + "/self/primary/Pictures/output.png";
         if(Imgcodecs.haveImageWriter(path)) {
             Imgcodecs.imwrite(path, picture);
-            Toast.makeText(getApplicationContext(), "Zapisano w /Pictures/", Toast.LENGTH_LONG).show();
+            Toast.makeText(getApplicationContext(), "Zapisano w /Pictures/output.png", Toast.LENGTH_LONG).show();
         }
         else
             System.err.println("Nie można zapisać pliku!");
@@ -266,16 +271,17 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
 
     // Kodowanie obrazu przy użyciu wybranej metody
     private void encode(SteganoMethod method, Mat picture, byte[] message) {
-        int[] msg = byteToBits(message);
-
-        if(message.length <= calculateAvailableCharacters(picture))
+        if(message.length <= calculateAvailableCharacters(picture)) {
+            int[] msg = messageToBits(message);
             saveImage(method.encode(picture, msg));
+        }
         else
             messageText.setText(R.string.messageSizeTooLarge);
     }
 
     // Dekodowanie obrazu przy użyciu wybranej metody
     private String decode(SteganoMethod method, Mat picture) {
+
             return method.decode(picture);
     }
 
@@ -284,13 +290,19 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         return availableSpace / 8;
     }
 
-    public int[] byteToBits(byte[] message) {
+    public int[] messageToBits(byte[] message) {
         int pointer = 0;
-        int[] messageBits = new int[message.length * 8];
+        int[] messageBits = new int[message.length * 8 + 8];
+        int[] messageTerminator = new int[] {0, 0, 0, 1, 1, 0, 0, 1,  0, 0, 0, 1, 1, 0, 0, 1,  0, 0, 0, 1, 1, 0, 0, 1,  0, 0, 0, 1, 1, 0, 0, 1};
         for (byte b : message) {
             for (int j = 7; j >= 0; j--) {
                 messageBits[pointer] = b >>> j & 1;
+                pointer++;
             }
+        }
+        // Dodanie znaku kończącego (EM - end of medium) na koniec tablicy z wiadomością
+        for (int i = 0; pointer < messageBits.length; pointer++, i++) {
+            messageBits[pointer] = messageTerminator[i];
         }
         return messageBits;
     }
