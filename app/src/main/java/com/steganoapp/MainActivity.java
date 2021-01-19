@@ -145,7 +145,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
                 messageEditText.clearFocus();
                 messageEditText.setActivated(false);
                 messageEditText.setVisibility(View.INVISIBLE);
-                messageText.setVisibility(View.INVISIBLE);
+                messageText.setText(R.string.messageContent);
                 encodeButton.setActivated(false);
                 encodeButton.setVisibility(View.INVISIBLE);
                 decodeButton.setActivated(true);
@@ -167,7 +167,6 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
 
                 messageText.setText(R.string.maxMessageSize);
                 messageText.append(" " + availableCharacters);
-                messageText.setVisibility(View.VISIBLE);
                 encodeButton.setActivated(true);
                 encodeButton.setVisibility(View.VISIBLE);
                 decodeButton.setActivated(false);
@@ -192,7 +191,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
             if(image.empty())
                 Toast.makeText(getApplicationContext(), "Najpierw załaduj obraz!", Toast.LENGTH_SHORT).show();
             else {
-                Toast.makeText(getApplicationContext(), "Dekoduj", Toast.LENGTH_SHORT).show();
+                decode(SteganoMethod.getInstance(methodName), image);
             }
         });
     }
@@ -272,7 +271,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
     // Kodowanie obrazu przy użyciu wybranej metody
     private void encode(SteganoMethod method, Mat picture, byte[] message) {
         if(message.length <= calculateAvailableCharacters(picture)) {
-            byte[] msg = messageToBits(message);
+            int[] msg = messageToBits(message);
             saveImage(method.encode(picture, msg));
         }
         else
@@ -280,10 +279,10 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
     }
 
     // Dekodowanie obrazu przy użyciu wybranej metody
-    private String decode(SteganoMethod method, Mat picture) {
-            //method.decode(picture)
-
-            return "";
+    private void decode(SteganoMethod method, Mat picture) {
+        String outputMessage = bitsToMessage(method.decode(picture));
+        messageText.setText(R.string.messageContent);
+        messageText.append(" " + outputMessage);
     }
 
     private int calculateAvailableCharacters(Mat picture) {
@@ -291,23 +290,50 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         return availableSpace / 8;
     }
 
-    public byte[] messageToBits(byte[] message) {
+    public int[] messageToBits(byte[] message) {
         int pointer = 0;
-        byte[] messageBits = new byte[message.length * 8 + 32];
-        byte[] messageTerminator = {0,0,1,0,1,1,1,1, 0,0,1,1,0,0,0,0, 0,0,1,0,1,1,1,1, 0,0,1,1,0,0,0,0};
+        int messageLength = message.length * 8 + 32;
+        int[] messageBits = new int[messageLength];
+        byte[] length = new byte[4];
 
-        for (byte b : message) {
+        length[0] = (byte) ( messageLength >> 24 );
+        length[1] = (byte) ( (messageLength << 8) >> 24 );
+        length[2] = (byte) ( (messageLength << 16) >> 24 );
+        length[3] = (byte) ( (messageLength << 24) >> 24 );
+
+        System.out.println("Rozmiar wiadomości: "+Arrays.toString(length));
+
+        // Kodowanie rozmiaru wiadomości
+        for (byte value : length) {
             for (int j = 7; j >= 0; j--) {
-                messageBits[pointer] = (byte) (b >>> j & 1);
+                messageBits[pointer] = value >>> j & 1;
                 pointer++;
             }
         }
-
-        // Dodanie znaku kończącego ("/0") na koniec tablicy z wiadomością
-        for (int i = 0; pointer < messageBits.length; pointer++, i++) {
-            messageBits[pointer] = messageTerminator[i];
+        // Kodowanie wiadomości
+        for (byte m : message) {
+            for (int j = 7; j >= 0; j--) {
+                messageBits[pointer] = m >>> j & 1;
+                pointer++;
+            }
         }
-
         return messageBits;
+    }
+
+    public String bitsToMessage(byte[] message) {
+        byte[] msg = new byte[message.length / 8];
+        int pointer = 0;
+        // Pętla konwertująca wiadomość do postaci bajtowej
+        for (int i = 0; i < msg.length; i++) {
+            for (int j = 7; j >= 0; j--, pointer++) {
+                msg[i] |= message[pointer] << j;
+            }
+        }
+        // Pętla konwertująca wartości bajtowe na tekst
+        StringBuilder output = new StringBuilder();
+        for (byte b : msg) {
+            output.append((char) b);
+        }
+        return output.toString();
     }
 }

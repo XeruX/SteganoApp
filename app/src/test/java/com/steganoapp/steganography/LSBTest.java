@@ -15,7 +15,7 @@ import static org.junit.Assert.*;
 public class LSBTest {
     Mat img = Imgcodecs.imread("C:\\Users\\Patryk\\Desktop\\output.bmp", Imgcodecs.IMREAD_COLOR);
     Mat outputImg;
-    int[] message = new int[] {0,1,0,1,0,1,0,0, 0,1,1,0,0,1,0,1, 0,1,1,1,0,0,1,1, 0,1,1,1,0,1,0,0}; // Test
+    byte[] message = new byte[] {0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0}; // "test"
     LSB lsb = new LSB();
 
     String wzor = "te";
