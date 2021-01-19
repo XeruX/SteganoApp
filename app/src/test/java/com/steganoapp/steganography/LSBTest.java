@@ -6,16 +6,20 @@ import org.junit.Test;
 import org.opencv.core.Mat;
 import org.opencv.imgcodecs.Imgcodecs;
 
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.BitSet;
+
 import static org.junit.Assert.*;
 
 public class LSBTest {
-    Mat img = Imgcodecs.imread("C:\\Users\\Patryk\\Desktop\\output.png", Imgcodecs.IMREAD_COLOR);
+    Mat img = Imgcodecs.imread("C:\\Users\\Patryk\\Desktop\\output.bmp", Imgcodecs.IMREAD_COLOR);
     Mat outputImg;
     int[] message = new int[] {0,1,0,1,0,1,0,0, 0,1,1,0,0,1,0,1, 0,1,1,1,0,0,1,1, 0,1,1,1,0,1,0,0}; // Test
     LSB lsb = new LSB();
 
-    String wzor = "test";
-    String out;
+    String wzor = "te";
+    byte[] out;
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -34,6 +38,7 @@ public class LSBTest {
     @Test
     public void decode() {
         out = lsb.decode(img);
-        assertEquals(wzor, out);
+        System.out.println(Arrays.toString(out));
+        //assertEquals(wzor, out);
     }
 }

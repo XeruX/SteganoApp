@@ -29,6 +29,7 @@ import androidx.core.app.ActivityCompat;
 import com.steganoapp.steganography.SteganoMethod;
 
 import org.opencv.android.OpenCVLoader;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
 import org.opencv.core.MatOfInt;
@@ -57,7 +58,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
     private Button decodeButton;
     private TextView messageText;
     private EditText messageEditText;
-    private Mat image = new Mat();
+    private Mat image;
     private int availableCharacters = 0;
     private byte[] message;
     private String methodName;
@@ -243,7 +244,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         imageView.setImageBitmap(BitmapFactory.decodeFile(imageFile.getAbsolutePath()));
 
         // Wczytanie obrazu do matrycy OpenCV
-        Mat img = Imgcodecs.imread(imageFile.getAbsolutePath(), Imgcodecs.IMREAD_COLOR);
+        Mat img = Imgcodecs.imread(imageFile.getAbsolutePath(), Imgcodecs.IMREAD_UNCHANGED);
 
         if(img.empty())
             imageStatusTextView.setText(R.string.fileNotLoaded);
@@ -257,13 +258,12 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         return img;
     }
 
-    // Zapisuje obraz pod ścieżką /Pictures/output.png
+    // Zapisuje obraz pod ścieżką /Pictures/output.bmp
     private void saveImage(Mat picture) {
-
-        String path = Environment.getStorageDirectory() + "/self/primary/Pictures/output.png";
+        String path = Environment.getStorageDirectory() + "/self/primary/Pictures/output.bmp";
         if(Imgcodecs.haveImageWriter(path)) {
             Imgcodecs.imwrite(path, picture);
-            Toast.makeText(getApplicationContext(), "Zapisano w /Pictures/output.png", Toast.LENGTH_LONG).show();
+            Toast.makeText(getApplicationContext(), "Zapisano w /Pictures/output.bmp", Toast.LENGTH_LONG).show();
         }
         else
             System.err.println("Nie można zapisać pliku!");
@@ -272,7 +272,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
     // Kodowanie obrazu przy użyciu wybranej metody
     private void encode(SteganoMethod method, Mat picture, byte[] message) {
         if(message.length <= calculateAvailableCharacters(picture)) {
-            int[] msg = messageToBits(message);
+            byte[] msg = messageToBits(message);
             saveImage(method.encode(picture, msg));
         }
         else
@@ -281,8 +281,9 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
 
     // Dekodowanie obrazu przy użyciu wybranej metody
     private String decode(SteganoMethod method, Mat picture) {
+            //method.decode(picture)
 
-            return method.decode(picture);
+            return "";
     }
 
     private int calculateAvailableCharacters(Mat picture) {
@@ -290,20 +291,23 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         return availableSpace / 8;
     }
 
-    public int[] messageToBits(byte[] message) {
+    public byte[] messageToBits(byte[] message) {
         int pointer = 0;
-        int[] messageBits = new int[message.length * 8 + 8];
-        int[] messageTerminator = new int[] {0, 0, 0, 1, 1, 0, 0, 1,  0, 0, 0, 1, 1, 0, 0, 1,  0, 0, 0, 1, 1, 0, 0, 1,  0, 0, 0, 1, 1, 0, 0, 1};
+        byte[] messageBits = new byte[message.length * 8 + 32];
+        byte[] messageTerminator = {0,0,1,0,1,1,1,1, 0,0,1,1,0,0,0,0, 0,0,1,0,1,1,1,1, 0,0,1,1,0,0,0,0};
+
         for (byte b : message) {
             for (int j = 7; j >= 0; j--) {
-                messageBits[pointer] = b >>> j & 1;
+                messageBits[pointer] = (byte) (b >>> j & 1);
                 pointer++;
             }
         }
-        // Dodanie znaku kończącego (EM - end of medium) na koniec tablicy z wiadomością
+
+        // Dodanie znaku kończącego ("/0") na koniec tablicy z wiadomością
         for (int i = 0; pointer < messageBits.length; pointer++, i++) {
             messageBits[pointer] = messageTerminator[i];
         }
+
         return messageBits;
     }
 }

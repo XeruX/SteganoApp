@@ -4,12 +4,12 @@ import org.opencv.core.Mat;
 
 public class DFT implements SteganoMethod {
     @Override
-    public Mat encode(Mat picture, int[] message) {
+    public Mat encode(Mat picture, byte[] message) {
         return new Mat();
     }
 
     @Override
-    public String decode(Mat picture) {
-        return "Nie zaimplementowano";
+    public byte[] decode(Mat picture) {
+        return new byte[0];
     }
 }
