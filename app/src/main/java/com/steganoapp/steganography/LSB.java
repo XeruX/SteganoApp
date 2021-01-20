@@ -56,7 +56,7 @@ public class LSB implements SteganoMethod {
         pointer = 0;
 
         // Pętla pobierająca wiadomość do tablicy message
-        for (int col = 32; pointer < 32; col++, pointer++) {
+        for (int col = 32; pointer < message.length && col < pictureSize; col++, pointer++) {
             message[pointer] = (byte) (pixels[col] & 1);
         }
         System.out.println("Wiadomość: "+Arrays.toString(message));

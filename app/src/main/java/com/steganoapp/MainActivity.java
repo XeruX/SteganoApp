@@ -62,6 +62,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
     private int availableCharacters = 0;
     private byte[] message;
     private String methodName;
+    private String extension;
 
     static {
         if(OpenCVLoader.initDebug()){
@@ -242,6 +243,13 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         ImageView imageView = (ImageView) findViewById(R.id.imageView);
         imageView.setImageBitmap(BitmapFactory.decodeFile(imageFile.getAbsolutePath()));
 
+        // Pobiera rozszerzenie pliku
+        if(imageFile.getPath().contains(".png"))
+            extension = ".png";
+        else
+            extension = ".bmp";
+
+
         // Wczytanie obrazu do matrycy OpenCV
         Mat img = Imgcodecs.imread(imageFile.getAbsolutePath(), Imgcodecs.IMREAD_UNCHANGED);
 
@@ -257,12 +265,12 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         return img;
     }
 
-    // Zapisuje obraz pod ścieżką /Pictures/output.bmp
+    // Zapisuje obraz pod ścieżką /Pictures/output + rozszerzenie pliku, który był załadowany
     private void saveImage(Mat picture) {
-        String path = Environment.getStorageDirectory() + "/self/primary/Pictures/output.bmp";
+        String path = Environment.getStorageDirectory() + "/self/primary/Pictures/output" + extension;
         if(Imgcodecs.haveImageWriter(path)) {
             Imgcodecs.imwrite(path, picture);
-            Toast.makeText(getApplicationContext(), "Zapisano w /Pictures/output.bmp", Toast.LENGTH_LONG).show();
+            Toast.makeText(getApplicationContext(), "Zapisano w /Pictures/output" + extension, Toast.LENGTH_LONG).show();
         }
         else
             System.err.println("Nie można zapisać pliku!");
@@ -287,7 +295,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
 
     private int calculateAvailableCharacters(Mat picture) {
         int availableSpace = (int) picture.total() * picture.channels();
-        return availableSpace / 8;
+        return availableSpace / 8 - 4;
     }
 
     public int[] messageToBits(byte[] message) {
