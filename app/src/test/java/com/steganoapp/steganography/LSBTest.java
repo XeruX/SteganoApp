@@ -3,6 +3,7 @@ package com.steganoapp.steganography;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 import org.opencv.imgcodecs.Imgcodecs;
 
@@ -26,15 +27,6 @@ public class LSBTest {
         System.load("D:\\Download\\opencv\\build\\java\\x64\\opencv_java440.dll");
     }
 
-    @Before
-    public void setUp() throws Exception {
-    }
-
-//    @Test
-//    public void twoMatricesMustNotEquals() {
-//        outputImg = lsb.encode(img, message);
-//        assertNotEquals(img, outputImg);
-//    }
     @Test
     public void decode() {
         out = lsb.decode(img);

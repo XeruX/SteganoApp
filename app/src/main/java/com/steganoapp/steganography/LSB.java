@@ -1,5 +1,9 @@
 package com.steganoapp.steganography;
 
+import android.content.res.Resources;
+
+import com.steganoapp.steganography.exception.MessageNotFound;
+
 import org.opencv.core.Mat;
 
 import java.util.Arrays;
@@ -28,7 +32,7 @@ public class LSB implements SteganoMethod {
     }
 
     @Override
-    public byte[] decode(Mat picture) {
+    public byte[] decode(Mat picture) throws MessageNotFound {
         // Tablica ze składowymi B, G, R - w takiej kolejności OpenCV wczytuje obraz
         byte[] pixels = new byte[(int) picture.total() * picture.channels()];
         int[] length = new int[32];
@@ -51,6 +55,10 @@ public class LSB implements SteganoMethod {
 
         System.out.println("Rozmiar wiadomości: "+messageLength);
 
+        if(messageLength >= (pictureSize - 32)) {
+            throw new MessageNotFound("Podany obraz nie zawiera wiadmości!");
+        }
+
         // Ustawienie dokładnego rozmiaru wiadomości w bitach
         message = new byte[messageLength - 32];
         pointer = 0;
@@ -59,7 +67,6 @@ public class LSB implements SteganoMethod {
         for (int col = 32; pointer < message.length && col < pictureSize; col++, pointer++) {
             message[pointer] = (byte) (pixels[col] & 1);
         }
-        System.out.println("Wiadomość: "+Arrays.toString(message));
         return message;
     }
 }

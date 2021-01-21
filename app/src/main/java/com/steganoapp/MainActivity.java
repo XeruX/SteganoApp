@@ -2,13 +2,20 @@ package com.steganoapp;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ContentProvider;
+import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.renderscript.RenderScript;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -24,11 +31,15 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.FileProvider;
 
 import com.steganoapp.steganography.SteganoMethod;
+import com.steganoapp.steganography.exception.MessageNotFound;
 
 import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
@@ -39,7 +50,10 @@ import org.opencv.osgi.OpenCVInterface;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -63,6 +77,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
     private byte[] message;
     private String methodName;
     private String extension;
+    private ImageView imageView;
 
     static {
         if(OpenCVLoader.initDebug()){
@@ -73,6 +88,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         }
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -93,6 +109,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         }
 
         // Inicjalizacja pól widoku
+        imageView = (ImageView) findViewById(R.id.imageView);
         imagePathTextView = (TextView) findViewById(R.id.imagePathTextView);
         imagePathTextView.setText(R.string.pathEmpty);
         imageStatusTextView = (TextView) findViewById(R.id.imageStatusTextView);
@@ -133,8 +150,8 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         //#################### PRZYCISKI ####################
         Button loadImageButton = (Button) findViewById(R.id.loadImageButton);
         loadImageButton.setOnClickListener(v -> {
-            Intent intent = new Intent();
-            intent.setAction(Intent.ACTION_GET_CONTENT);
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
             intent.setType("image/*");
             startActivityForResult(intent, ACTIVITY_GET_CONTENT);
         });
@@ -202,13 +219,12 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         super.onActivityResult(requestCode, resultCode, data);
         if(requestCode == ACTIVITY_GET_CONTENT) {
             if(resultCode == RESULT_CANCELED)
-                System.err.println("getData(): Błąd! - brak danych!");
+                System.err.println("getData(): Anulowano! - brak danych!");
             else {
                 String PARTIAL_PATH = "/document/primary:";
                 String partial = data.getData().getPath().replace(PARTIAL_PATH, "/");
                 String externalStorage = Environment.getExternalStorageDirectory().getPath();
                 File imagePath = new File(externalStorage + partial);
-                imagePathTextView.setText(imagePath.getAbsolutePath());
                 image = loadImage(imagePath);
             }
         }
@@ -240,22 +256,28 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
     // Wczytuje obraz z pamięci telefonu i zwraca w postaci matrycy OpenCV
     private Mat loadImage(File imageFile) {
         // Wczytanie obrazu do miniaturki
-        ImageView imageView = (ImageView) findViewById(R.id.imageView);
+
         imageView.setImageBitmap(BitmapFactory.decodeFile(imageFile.getAbsolutePath()));
 
-        // Pobiera rozszerzenie pliku
-        if(imageFile.getPath().contains(".png"))
-            extension = ".png";
-        else
-            extension = ".bmp";
-
-
         // Wczytanie obrazu do matrycy OpenCV
-        Mat img = Imgcodecs.imread(imageFile.getAbsolutePath(), Imgcodecs.IMREAD_UNCHANGED);
+        Mat img = Imgcodecs.imread(imageFile.getAbsolutePath(), Imgcodecs.IMREAD_GRAYSCALE);
+
+        // Pobiera rozszerzenie pliku
+        if(imageFile.getPath().contains(".bmp"))
+            extension = ".bmp";
+        else if(imageFile.getPath().contains(".jpg")
+                || imageFile.getPath().contains(".JPG")
+                || imageFile.getPath().contains(".JPEG")
+                || imageFile.getPath().contains(".jpeg")) {
+            img.release();
+        }
+        else extension = ".png";
 
         if(img.empty())
             imageStatusTextView.setText(R.string.fileNotLoaded);
         else {
+            imagePathTextView.setText(R.string.pathEmpty);
+            imagePathTextView.append(imageFile.getPath());
             imageStatusTextView.setText(R.string.fileLoaded);
             imageStatusTextView.append("\nRozmiar: " + imageFile.length() + " bajtów");
             availableCharacters = calculateAvailableCharacters(img);
@@ -277,20 +299,35 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
     }
 
     // Kodowanie obrazu przy użyciu wybranej metody
+    @RequiresApi(api = Build.VERSION_CODES.O)
     private void encode(SteganoMethod method, Mat picture, byte[] message) {
         if(message.length <= calculateAvailableCharacters(picture)) {
             int[] msg = messageToBits(message);
-            saveImage(method.encode(picture, msg));
+            Mat mat = method.encode(picture, msg);
+            Bitmap bitmap = Bitmap.createBitmap(512, 512, Bitmap.Config.HARDWARE);
+            Utils.matToBitmap(mat, bitmap);
+            imageView.setImageBitmap(bitmap);
+            //saveImage(mat);
         }
-        else
-            messageText.setText(R.string.messageSizeTooLarge);
+        else messageText.setText(R.string.messageSizeTooLarge);
     }
 
     // Dekodowanie obrazu przy użyciu wybranej metody
     private void decode(SteganoMethod method, Mat picture) {
-        String outputMessage = bitsToMessage(method.decode(picture));
-        messageText.setText(R.string.messageContent);
-        messageText.append(" " + outputMessage);
+        String outputMessage = "";
+        try {
+            outputMessage = bitsToMessage(method.decode(picture));
+            messageText.setText(R.string.messageContent);
+            messageText.append(" " + outputMessage);
+        }
+        catch (MessageNotFound ex) {
+            messageText.setText(ex.getMessage());
+        }
+        catch (Exception ex) {
+            ex.printStackTrace();
+            System.out.println(ex.toString());
+            System.out.println(ex.getMessage());
+        }
     }
 
     private int calculateAvailableCharacters(Mat picture) {
@@ -307,9 +344,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         length[0] = (byte) ( messageLength >> 24 );
         length[1] = (byte) ( (messageLength << 8) >> 24 );
         length[2] = (byte) ( (messageLength << 16) >> 24 );
-        length[3] = (byte) ( (messageLength << 24) >> 24 );
-
-        System.out.println("Rozmiar wiadomości: "+Arrays.toString(length));
+        length[3] = (byte) messageLength;
 
         // Kodowanie rozmiaru wiadomości
         for (byte value : length) {
