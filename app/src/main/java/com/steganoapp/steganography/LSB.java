@@ -11,7 +11,7 @@ import java.util.Arrays;
 public class LSB implements SteganoMethod {
 
     @Override
-    public Mat encode(Mat picture, int[] message) {
+    public Mat encode(Mat picture, byte[] message) {
         // Tablica ze składowymi B, G, R - w takiej kolejności OpenCV wczytuje obraz
         byte[] pixels = new byte[(int) picture.total() * picture.channels()];
         int messagePointer = 0;

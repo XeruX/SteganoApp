@@ -18,6 +18,7 @@ import android.provider.MediaStore;
 import android.renderscript.RenderScript;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
@@ -88,7 +89,6 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         }
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -168,6 +168,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
                 encodeButton.setVisibility(View.INVISIBLE);
                 decodeButton.setActivated(true);
                 decodeButton.setVisibility(View.VISIBLE);
+                messageText.setMovementMethod(new ScrollingMovementMethod());
             }
             else {
                 switchButton.setText(R.string.switchButtonOff);
@@ -256,11 +257,9 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
     // Wczytuje obraz z pamięci telefonu i zwraca w postaci matrycy OpenCV
     private Mat loadImage(File imageFile) {
         // Wczytanie obrazu do miniaturki
-
         imageView.setImageBitmap(BitmapFactory.decodeFile(imageFile.getAbsolutePath()));
-
         // Wczytanie obrazu do matrycy OpenCV
-        Mat img = Imgcodecs.imread(imageFile.getAbsolutePath(), Imgcodecs.IMREAD_GRAYSCALE);
+        Mat img = Imgcodecs.imread(imageFile.getAbsolutePath(), Imgcodecs.IMREAD_UNCHANGED);
 
         // Pobiera rozszerzenie pliku
         if(imageFile.getPath().contains(".bmp"))
@@ -273,8 +272,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         }
         else extension = ".png";
 
-        if(img.empty())
-            imageStatusTextView.setText(R.string.fileNotLoaded);
+        if(img.empty()) imageStatusTextView.setText(R.string.fileNotLoaded);
         else {
             imagePathTextView.setText(R.string.pathEmpty);
             imagePathTextView.append(imageFile.getPath());
@@ -294,20 +292,15 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
             Imgcodecs.imwrite(path, picture);
             Toast.makeText(getApplicationContext(), "Zapisano w /Pictures/output" + extension, Toast.LENGTH_LONG).show();
         }
-        else
-            System.err.println("Nie można zapisać pliku!");
+        else System.err.println("Nie można zapisać pliku!");
     }
 
     // Kodowanie obrazu przy użyciu wybranej metody
-    @RequiresApi(api = Build.VERSION_CODES.O)
     private void encode(SteganoMethod method, Mat picture, byte[] message) {
         if(message.length <= calculateAvailableCharacters(picture)) {
-            int[] msg = messageToBits(message);
+            byte[] msg = messageToBits(message);
             Mat mat = method.encode(picture, msg);
-            Bitmap bitmap = Bitmap.createBitmap(512, 512, Bitmap.Config.HARDWARE);
-            Utils.matToBitmap(mat, bitmap);
-            imageView.setImageBitmap(bitmap);
-            //saveImage(mat);
+            saveImage(mat);
         }
         else messageText.setText(R.string.messageSizeTooLarge);
     }
@@ -335,10 +328,10 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         return availableSpace / 8 - 4;
     }
 
-    public int[] messageToBits(byte[] message) {
+    public byte[] messageToBits(byte[] message) {
         int pointer = 0;
         int messageLength = message.length * 8 + 32;
-        int[] messageBits = new int[messageLength];
+        byte[] messageBits = new byte[messageLength];
         byte[] length = new byte[4];
 
         length[0] = (byte) ( messageLength >> 24 );
@@ -349,14 +342,14 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         // Kodowanie rozmiaru wiadomości
         for (byte value : length) {
             for (int j = 7; j >= 0; j--) {
-                messageBits[pointer] = value >>> j & 1;
+                messageBits[pointer] = (byte) (value >>> j & 1);
                 pointer++;
             }
         }
         // Kodowanie wiadomości
         for (byte m : message) {
             for (int j = 7; j >= 0; j--) {
-                messageBits[pointer] = m >>> j & 1;
+                messageBits[pointer] = (byte) (m >>> j & 1);
                 pointer++;
             }
         }

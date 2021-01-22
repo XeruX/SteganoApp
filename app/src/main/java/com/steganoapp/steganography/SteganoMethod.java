@@ -5,7 +5,7 @@ import com.steganoapp.steganography.exception.MessageNotFound;
 import org.opencv.core.Mat;
 
 public interface SteganoMethod {
-    Mat encode(Mat picture, int[] message);
+    Mat encode(Mat picture, byte[] message);
     byte[] decode(Mat picture) throws MessageNotFound;
 
     static SteganoMethod getInstance(String methodName) {
