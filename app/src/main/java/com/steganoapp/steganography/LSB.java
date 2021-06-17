@@ -1,17 +1,13 @@
 package com.steganoapp.steganography;
 
-import android.content.res.Resources;
-
-import com.steganoapp.steganography.exception.MessageNotFound;
+import com.steganoapp.exceptions.MessageNotFound;
 
 import org.opencv.core.Mat;
-
-import java.util.Arrays;
 
 public class LSB implements SteganoMethod {
 
     @Override
-    public Mat encode(Mat picture, byte[] message) {
+    public Mat encodeT(Mat picture, byte[] message) {
         // Tablica ze składowymi B, G, R - w takiej kolejności OpenCV wczytuje obraz
         byte[] pixels = new byte[(int) picture.total() * picture.channels()];
         int messagePointer = 0;
@@ -24,15 +20,13 @@ public class LSB implements SteganoMethod {
             pixels[col] = (byte) ((pixels[col] & 0xFE) | message[messagePointer]);
             messagePointer++;
         }
-        int tmp = encodedPicture.put(0, 0, pixels);
-
-        System.out.println("("+tmp+")"+"Zakodowano LSB: " + Arrays.toString(message));
+        encodedPicture.put(0, 0, pixels);
 
         return encodedPicture;
     }
 
     @Override
-    public byte[] decode(Mat picture) throws MessageNotFound {
+    public byte[] decodeT(Mat picture) throws MessageNotFound {
         // Tablica ze składowymi B, G, R - w takiej kolejności OpenCV wczytuje obraz
         byte[] pixels = new byte[(int) picture.total() * picture.channels()];
         int[] length = new int[32];
@@ -68,5 +62,19 @@ public class LSB implements SteganoMethod {
             message[pointer] = (byte) (pixels[col] & 1);
         }
         return message;
+    }
+
+    @Override
+    public Mat encodeP(Mat picture, Mat pictureToHide) {
+
+
+        return null;
+    }
+
+    @Override
+    public Mat decodeP(Mat picture) {
+
+
+        return new Mat();
     }
 }

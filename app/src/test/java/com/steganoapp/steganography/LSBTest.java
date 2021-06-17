@@ -1,23 +1,17 @@
 package com.steganoapp.steganography;
 
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 import org.opencv.imgcodecs.Imgcodecs;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.BitSet;
-
-import static org.junit.Assert.*;
 
 public class LSBTest {
     Mat img = Imgcodecs.imread("C:\\Users\\Patryk\\Desktop\\output.bmp", Imgcodecs.IMREAD_COLOR);
     Mat outputImg;
     byte[] message = new byte[] {0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0}; // "test"
-    LSB lsb = new LSB();
+    LSB LSB = new LSB();
 
     String wzor = "te";
     byte[] out;
@@ -29,7 +23,7 @@ public class LSBTest {
 
     @Test
     public void decode() {
-        out = lsb.decode(img);
+        out = LSB.decodeT(img);
         System.out.println(Arrays.toString(out));
         //assertEquals(wzor, out);
     }

@@ -2,20 +2,12 @@ package com.steganoapp;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.ContentProvider;
-import android.content.ContentResolver;
-import android.content.ContentUris;
-import android.content.Context;
+import android.app.ActivityManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.provider.MediaStore;
-import android.renderscript.RenderScript;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.text.method.ScrollingMovementMethod;
@@ -32,59 +24,46 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.FileProvider;
 
+import com.steganoapp.steganography.LSB;
 import com.steganoapp.steganography.SteganoMethod;
-import com.steganoapp.steganography.exception.MessageNotFound;
+import com.steganoapp.exceptions.MessageNotFound;
+import com.steganoapp.utility.SteganoUtility;
 
 import org.opencv.android.OpenCVLoader;
-import org.opencv.android.Utils;
-import org.opencv.core.CvType;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
-import org.opencv.core.MatOfInt;
 import org.opencv.imgcodecs.Imgcodecs;
-import org.opencv.osgi.OpenCVInterface;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Objects;
 
 public class MainActivity extends Activity implements AdapterView.OnItemSelectedListener {
 
     public static final int PERMISSION_EXTERNAL_STORAGE = 0;
-    public static final int ACTIVITY_GET_CONTENT = 1;
+    public static final int ACTIVITY_GET_PICTURE_CARRIER = 1;
+    public static final int ACTIVITY_GET_PICTURE_MESSAGE = 2;
+    public final int METHOD_LSB_TEXT = 0;
+    public final int METHOD_LSB_PICTURE = 1;
 
     private TextView imagePathTextView;
-    private TextView imageStatusTextView;
     private Switch switchButton;
     private Button encodeButton;
     private Button decodeButton;
     private TextView messageText;
+    private TextView imageMessageTextView;
     private EditText messageEditText;
-    private Mat image;
+    private Mat imageCarrier = new Mat();
+    private Mat imageMessage = new Mat();
     private int availableCharacters = 0;
     private byte[] message;
-    private String methodName;
+    private int selectedMethod;
     private String extension;
     private ImageView imageView;
 
     static {
-        if(OpenCVLoader.initDebug()){
+        if (OpenCVLoader.initDebug()){
             Log.d("Check","OpenCV skonfigurowano pomyślnie");
-        } else{
-
+        } else {
             Log.d("Check","OpenCV nie zostało pomyślnie skonfigurowane!");
         }
     }
@@ -94,28 +73,23 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Pobranie uprawnień zapisu/odczytu plików
-        if(ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-            // Uprawnienia przyznane
-        }
-        else if(ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-            // Uprawnienia przyznane
-        }
-        else {
-            // Brak uprawnień odczytu/zapisu - komunikat o udzielenie uprawnień
+        // Pobranie uprawnień odczytu / zapisu plików
+        if(ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+            || ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            // Brak uprawnień odczytu / zapisu - komunikat o udzielenie uprawnień
             ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    new String[] { Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE },
                     PERMISSION_EXTERNAL_STORAGE);
         }
 
         // Inicjalizacja pól widoku
         imageView = (ImageView) findViewById(R.id.imageView);
         imagePathTextView = (TextView) findViewById(R.id.imagePathTextView);
-        imagePathTextView.setText(R.string.pathEmpty);
-        imageStatusTextView = (TextView) findViewById(R.id.imageStatusTextView);
-        imageStatusTextView.setText(R.string.fileMissing);
+        imagePathTextView.setText(R.string.fileMissing);
         messageText = (TextView) findViewById(R.id.messageText);
         messageText.setText(R.string.maxMessageSize);
+        imageMessageTextView = (TextView) findViewById(R.id.imageMessageTextView);
+        imageMessageTextView.setText(R.string.imageMessageTextView);
         messageEditText = (EditText) findViewById(R.id.messageEditText);
         messageEditText.addTextChangedListener(new TextWatcher() {
             @Override
@@ -140,6 +114,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
             public void afterTextChanged(Editable s) {
             }
         });
+
         // Spinner
         Spinner spinner = (Spinner) findViewById(R.id.spinner);
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, R.array.methods_array, android.R.layout.simple_spinner_item);
@@ -151,9 +126,14 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         Button loadImageButton = (Button) findViewById(R.id.loadImageButton);
         loadImageButton.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
             intent.setType("image/*");
-            startActivityForResult(intent, ACTIVITY_GET_CONTENT);
+            startActivityForResult(intent, ACTIVITY_GET_PICTURE_CARRIER);
+        });
+        Button loadImageButtonMessage = (Button) findViewById(R.id.loadImageButtonMessage);
+        loadImageButtonMessage.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.setType("image/*");
+            startActivityForResult(intent, ACTIVITY_GET_PICTURE_MESSAGE);
         });
         //########## Przycisk zmiany trybu
         switchButton = (Switch) findViewById(R.id.switchButton);
@@ -161,56 +141,68 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
             if(isChecked) {
                 switchButton.setText(R.string.switchButtonOn);
                 messageEditText.clearFocus();
-                messageEditText.setActivated(false);
-                messageEditText.setVisibility(View.INVISIBLE);
-                messageText.setText(R.string.messageContent);
-                encodeButton.setActivated(false);
+                if(selectedMethod == METHOD_LSB_TEXT) {
+                    messageEditText.setEnabled(false);
+                    messageEditText.setVisibility(View.INVISIBLE);
+                    messageText.setText(R.string.messageContent);
+                    messageText.setMovementMethod(new ScrollingMovementMethod());
+                    imageMessageTextView.setEnabled(false);
+                }
+                else if(selectedMethod == METHOD_LSB_PICTURE) {
+                    imageMessageTextView.setEnabled(true);
+                }
+                encodeButton.setEnabled(false);
                 encodeButton.setVisibility(View.INVISIBLE);
-                decodeButton.setActivated(true);
+                decodeButton.setEnabled(true);
                 decodeButton.setVisibility(View.VISIBLE);
-                messageText.setMovementMethod(new ScrollingMovementMethod());
             }
             else {
                 switchButton.setText(R.string.switchButtonOff);
                 messageEditText.setText("");
                 messageEditText.clearFocus();
-                messageEditText.setActivated(true);
+                messageEditText.setEnabled(true);
                 messageEditText.setVisibility(View.VISIBLE);
 
-                if(image.empty()) {
+                if(imageCarrier.empty()) {
                     availableCharacters = 0;
                 }
                 else {
-                    availableCharacters = calculateAvailableCharacters(image);
+                    availableCharacters = SteganoUtility.calculateAvailableCharacters(imageCarrier);
                 }
 
                 messageText.setText(R.string.maxMessageSize);
                 messageText.append(" " + availableCharacters);
-                encodeButton.setActivated(true);
+                encodeButton.setEnabled(true);
                 encodeButton.setVisibility(View.VISIBLE);
-                decodeButton.setActivated(false);
+                decodeButton.setEnabled(false);
                 decodeButton.setVisibility(View.INVISIBLE);
             }
         });
         //########## Przycisk kodowania
         encodeButton = (Button) findViewById(R.id.encodeButton);
         encodeButton.setOnClickListener(v -> {
-            if(image.empty())
-                Toast.makeText(getApplicationContext(), "Najpierw załaduj obraz!", Toast.LENGTH_SHORT).show();
-            else if(messageEditText.length() <= 0)
-                Toast.makeText(getApplicationContext(), "Wiadomość nie może być pusta!", Toast.LENGTH_SHORT).show();
-            else {
-                message = messageEditText.getText().toString().getBytes();
-                encode(SteganoMethod.getInstance(methodName), image, message);
+            if(selectedMethod == METHOD_LSB_TEXT) {
+                if(imageCarrier.empty())
+                    Toast.makeText(getApplicationContext(), "Najpierw załaduj obraz!", Toast.LENGTH_SHORT).show();
+                else if(messageEditText.length() <= 0)
+                    Toast.makeText(getApplicationContext(), "Wiadomość nie może być pusta!", Toast.LENGTH_SHORT).show();
+                else {
+                    message = messageEditText.getText().toString().getBytes();
+                    encode(new LSB(), imageCarrier, message);
+                }
             }
+            else if(selectedMethod == METHOD_LSB_PICTURE) {
+                Toast.makeText(getApplicationContext(), "LSB PICTURE", Toast.LENGTH_SHORT).show();
+            }
+            else Toast.makeText(getApplicationContext(), "Błąd - nie ma takiej metody!", Toast.LENGTH_SHORT).show();
         });
         //########## Przycisk dekodowania
         decodeButton = (Button) findViewById(R.id.decodeButton);
         decodeButton.setOnClickListener(v -> {
-            if(image.empty())
+            if(imageCarrier.empty())
                 Toast.makeText(getApplicationContext(), "Najpierw załaduj obraz!", Toast.LENGTH_SHORT).show();
             else {
-                decode(SteganoMethod.getInstance(methodName), image);
+                //decode(SteganoMethod.getInstance(methodName), image);
             }
         });
     }
@@ -218,15 +210,28 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if(requestCode == ACTIVITY_GET_CONTENT) {
+        if(requestCode == ACTIVITY_GET_PICTURE_CARRIER) {
             if(resultCode == RESULT_CANCELED)
-                System.err.println("getData(): Anulowano! - brak danych!");
+                System.err.println("Wybór nośnika anulowano! - brak danych!");
             else {
                 String PARTIAL_PATH = "/document/primary:";
                 String partial = data.getData().getPath().replace(PARTIAL_PATH, "/");
                 String externalStorage = Environment.getExternalStorageDirectory().getPath();
                 File imagePath = new File(externalStorage + partial);
-                image = loadImage(imagePath);
+                // Wczytanie obrazu do miniaturki
+                imageView.setImageBitmap(BitmapFactory.decodeFile(imagePath.getAbsolutePath()));
+                imageCarrier = loadImage(imagePath);
+            }
+        }
+        if(requestCode == ACTIVITY_GET_PICTURE_MESSAGE) {
+            if(resultCode == RESULT_CANCELED)
+                System.err.println("Wybór obrazu-wiadomości anulowano! - brak danych!");
+            else {
+                String PARTIAL_PATH = "/document/primary:";
+                String partial = data.getData().getPath().replace(PARTIAL_PATH, "/");
+                String externalStorage = Environment.getExternalStorageDirectory().getPath();
+                File imagePath = new File(externalStorage + partial);
+                imageMessage = loadImage(imagePath);
             }
         }
     }
@@ -234,8 +239,8 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
     @Override
     public void onItemSelected(AdapterView<?> parent, View view,
                                int pos, long id) {
-        Object method = parent.getItemAtPosition(pos);
-        methodName = Objects.toString(method);
+        selectedMethod = parent.getSelectedItemPosition();
+        switchButton.refreshDrawableState();
     }
     @Override
     public void onNothingSelected(AdapterView<?> parent) {
@@ -250,21 +255,20 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
                 // Uprawnienia przyznane
             } else {
                 // Zakończyć aplikację
+
             }
         }
     }
 
     // Wczytuje obraz z pamięci telefonu i zwraca w postaci matrycy OpenCV
     private Mat loadImage(File imageFile) {
-        // Wczytanie obrazu do miniaturki
-        imageView.setImageBitmap(BitmapFactory.decodeFile(imageFile.getAbsolutePath()));
         // Wczytanie obrazu do matrycy OpenCV
         Mat img = Imgcodecs.imread(imageFile.getAbsolutePath(), Imgcodecs.IMREAD_UNCHANGED);
 
         // Pobiera rozszerzenie pliku
-        if(imageFile.getPath().contains(".bmp"))
+        if (imageFile.getPath().contains(".bmp"))
             extension = ".bmp";
-        else if(imageFile.getPath().contains(".jpg")
+        else if (imageFile.getPath().contains(".jpg")
                 || imageFile.getPath().contains(".JPG")
                 || imageFile.getPath().contains(".JPEG")
                 || imageFile.getPath().contains(".jpeg")) {
@@ -272,13 +276,11 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
         }
         else extension = ".png";
 
-        if(img.empty()) imageStatusTextView.setText(R.string.fileNotLoaded);
+        if (img.empty()) imagePathTextView.setText(R.string.fileNotLoaded);
         else {
             imagePathTextView.setText(R.string.pathEmpty);
             imagePathTextView.append(imageFile.getPath());
-            imageStatusTextView.setText(R.string.fileLoaded);
-            imageStatusTextView.append("\nRozmiar: " + imageFile.length() + " bajtów");
-            availableCharacters = calculateAvailableCharacters(img);
+            availableCharacters = SteganoUtility.calculateAvailableCharacters(img);
             messageText.setText(R.string.maxMessageSize);
             messageText.append(" " + availableCharacters);
         }
@@ -288,7 +290,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
     // Zapisuje obraz pod ścieżką /Pictures/output + rozszerzenie pliku, który był załadowany
     private void saveImage(Mat picture) {
         String path = Environment.getStorageDirectory() + "/self/primary/Pictures/output" + extension;
-        if(Imgcodecs.haveImageWriter(path)) {
+        if (Imgcodecs.haveImageWriter(path)) {
             Imgcodecs.imwrite(path, picture);
             Toast.makeText(getApplicationContext(), "Zapisano w /Pictures/output" + extension, Toast.LENGTH_LONG).show();
         }
@@ -297,19 +299,23 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
 
     // Kodowanie obrazu przy użyciu wybranej metody
     private void encode(SteganoMethod method, Mat picture, byte[] message) {
-        if(message.length <= calculateAvailableCharacters(picture)) {
-            byte[] msg = messageToBits(message);
-            Mat mat = method.encode(picture, msg);
-            saveImage(mat);
+        if (selectedMethod == METHOD_LSB_TEXT) {
+            if (message.length <= SteganoUtility.calculateAvailableCharacters(picture)) {
+                byte[] msg = SteganoUtility.messageToBits(message);
+                Mat mat = method.encodeT(picture, msg);
+                saveImage(mat);
+            } else messageText.setText(R.string.messageSizeTooLarge);
         }
-        else messageText.setText(R.string.messageSizeTooLarge);
+        else if (selectedMethod == METHOD_LSB_PICTURE) {
+
+        }
     }
 
     // Dekodowanie obrazu przy użyciu wybranej metody
     private void decode(SteganoMethod method, Mat picture) {
         String outputMessage = "";
         try {
-            outputMessage = bitsToMessage(method.decode(picture));
+            outputMessage = SteganoUtility.bitsToMessage(method.decodeT(picture));
             messageText.setText(R.string.messageContent);
             messageText.append(" " + outputMessage);
         }
@@ -321,55 +327,5 @@ public class MainActivity extends Activity implements AdapterView.OnItemSelected
             System.out.println(ex.toString());
             System.out.println(ex.getMessage());
         }
-    }
-
-    private int calculateAvailableCharacters(Mat picture) {
-        int availableSpace = (int) picture.total() * picture.channels();
-        return availableSpace / 8 - 4;
-    }
-
-    public byte[] messageToBits(byte[] message) {
-        int pointer = 0;
-        int messageLength = message.length * 8 + 32;
-        byte[] messageBits = new byte[messageLength];
-        byte[] length = new byte[4];
-
-        length[0] = (byte) ( messageLength >> 24 );
-        length[1] = (byte) ( (messageLength << 8) >> 24 );
-        length[2] = (byte) ( (messageLength << 16) >> 24 );
-        length[3] = (byte) messageLength;
-
-        // Kodowanie rozmiaru wiadomości
-        for (byte value : length) {
-            for (int j = 7; j >= 0; j--) {
-                messageBits[pointer] = (byte) (value >>> j & 1);
-                pointer++;
-            }
-        }
-        // Kodowanie wiadomości
-        for (byte m : message) {
-            for (int j = 7; j >= 0; j--) {
-                messageBits[pointer] = (byte) (m >>> j & 1);
-                pointer++;
-            }
-        }
-        return messageBits;
-    }
-
-    public String bitsToMessage(byte[] message) {
-        byte[] msg = new byte[message.length / 8];
-        int pointer = 0;
-        // Pętla konwertująca wiadomość do postaci bajtowej
-        for (int i = 0; i < msg.length; i++) {
-            for (int j = 7; j >= 0; j--, pointer++) {
-                msg[i] |= message[pointer] << j;
-            }
-        }
-        // Pętla konwertująca wartości bajtowe na tekst
-        StringBuilder output = new StringBuilder();
-        for (byte b : msg) {
-            output.append((char) b);
-        }
-        return output.toString();
     }
 }

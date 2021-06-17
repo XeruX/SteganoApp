@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">SteganoApp</string>
-    <string name="loadImageButton">Załaduj obraz</string>
+    <string name="loadImageButton">Załaduj obraz (Nośnik)</string>
+    <string name="loadImageButtonMessage">Załaduj obraz (Wiadomość)</string>
     <string name="pathEmpty">Ścieżka:</string>
     <string name="fileMissing">Brak pliku!</string>
     <string name="fileLoaded">Plik wczytano poprawnie!</string>
@@ -13,8 +14,9 @@
     <string name="switchButtonOff">Kodowanie</string>
     <string name="switchButtonOn">Dekodowanie</string>
     <string name="methodTextView">Metoda: </string>
+    <string name="imageMessageTextView">Wiadomość: </string>
     <string-array name="methods_array">
-        <item>LSB</item>
-        <item>DFT</item>
+        <item>LSB - tekst</item>
+        <item>LSB - obraz</item>
     </string-array>
 </resources>

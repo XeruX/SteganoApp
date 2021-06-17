@@ -12,7 +12,7 @@ import java.util.List;
 
 public class DFT implements SteganoMethod {
     @Override
-    public Mat encode(Mat picture, byte[] message) {
+    public Mat encodeT(Mat picture, byte[] message) {
         Mat finalPicture = new Mat(picture.size(), picture.type());
 
         if(picture.type() == CvType.CV_8UC3) {
@@ -28,7 +28,7 @@ public class DFT implements SteganoMethod {
     }
 
     @Override
-    public byte[] decode(Mat picture) {
+    public byte[] decodeT(Mat picture) {
         List<Mat> complexB = new ArrayList<>();
         List<Mat> complexG = new ArrayList<>();
         List<Mat> complexR = new ArrayList<>();
@@ -63,7 +63,7 @@ public class DFT implements SteganoMethod {
         Core.dft(blue, blue);
         Core.dft(green, green);
         Core.dft(red, red);
-        // dlatego trzeba rozbić każdą matrycę na część rzeczywistą i urojoną
+        // dlatego trzeba rozbić każdą matrycę na część rzeczywistą i urojoną`
         Core.split(blue, complexB);
         Core.split(green, complexG);
         Core.split(red, complexR);
@@ -86,6 +86,16 @@ public class DFT implements SteganoMethod {
         }
 
         return new byte[] {0,1,0,0,0,1,0,0, 0,1,0,0,0,1,1,0, 0,1,0,1,0,1,0,0};
+    }
+
+    @Override
+    public Mat encodeP(Mat picture, Mat pictureToHide) {
+        return null;
+    }
+
+    @Override
+    public Mat decodeP(Mat picture) {
+        return null;
     }
 
     private Mat encodeColorPicture(Mat colorPicture, byte[] message) {
